@@ -1,0 +1,456 @@
+<title>Temerrüt Risk Simülatörü</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Düzen: solda başvuru formu (gruplu alanlar), sağda yapışkan karar paneli; telefonda panel üstte, canlı risk çipi altta */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --surface-2: #edf0f5; --line: #d8dde6; --line-strong: #c3cad6;
+  --fg: #111725; --muted: #586276; --faint: #8a93a3;
+  --accent: #1f5fbf; --accent-soft: #e3ecfa;
+  --down: #2a78d6; --up: #df4a3e; --track: #e6e9ef;
+  --good: #0a8a0a; --good-soft: #e3f4e3; --warn: #a86f00; --warn-soft: #fbf0d9; --crit: #c83434; --crit-soft: #fbe5e3;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1118; --surface: #141a24; --surface-2: #1b2330; --line: #283241; --line-strong: #364153;
+  --fg: #e6eaf1; --muted: #9aa4b6; --faint: #6c7689;
+  --accent: #6aa5f2; --accent-soft: #1b2a42;
+  --down: #3f8de8; --up: #ee6b62; --track: #232c3a;
+  --good: #3cc13c; --good-soft: #15291a; --warn: #e3a92a; --warn-soft: #2d2412; --crit: #ef6b6b; --crit-soft: #331a1c;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0d1118; --surface: #141a24; --surface-2: #1b2330; --line: #283241; --line-strong: #364153;
+  --fg: #e6eaf1; --muted: #9aa4b6; --faint: #6c7689;
+  --accent: #6aa5f2; --accent-soft: #1b2a42;
+  --down: #3f8de8; --up: #ee6b62; --track: #232c3a;
+  --good: #3cc13c; --good-soft: #15291a; --warn: #e3a92a; --warn-soft: #2d2412; --crit: #ef6b6b; --crit-soft: #331a1c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+h1 { font: 800 clamp(26px, 4vw, 36px)/1.05 var(--display); font-stretch: 112%; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; font-size: 14.5px; max-width: 62ch; }
+.specs { display: flex; flex-wrap: wrap; gap: 6px; }
+.spec { font: 500 12px/1 var(--mono); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; white-space: nowrap; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.toolbar .lbl { font: 700 11px/1 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-right: 4px; }
+button.chip { font: 600 14px/1 var(--body); color: var(--fg); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 9px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+button.chip:hover { border-color: var(--accent); color: var(--accent); }
+button.chip:focus-visible, input:focus-visible, select:focus-visible, .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.banner { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 10px 14px; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 18px; font-size: 14px; }
+.banner b { font-weight: 700; }
+.banner .tag { font: 600 12px/1 var(--mono); padding: 5px 8px; border-radius: 6px; }
+.tag.ok { background: var(--good-soft); color: var(--good); }
+.tag.bad { background: var(--crit-soft); color: var(--crit); }
+.tag.neutral { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 22px; align-items: start; }
+.panel { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); }
+
+/* ---------- Form ---------- */
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); margin: 0; padding: 14px 16px 16px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+fieldset.wide { grid-column: 1 / -1; }
+legend { font: 700 11.5px/1 var(--display); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); padding: 0 6px; margin-left: -6px; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field label { font-size: 13.5px; font-weight: 600; color: var(--fg); display: flex; justify-content: space-between; gap: 8px; }
+.field label .hint { color: var(--faint); font: 400 11.5px/1.6 var(--mono); white-space: nowrap; }
+.inp { display: flex; align-items: stretch; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg); overflow: hidden; }
+.inp:focus-within { border-color: var(--accent); }
+.inp input, .inp select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--fg); font: 500 15px/1.2 var(--mono); padding: 9px 10px; outline: none; }
+.inp select { font-family: var(--body); font-weight: 600; }
+.inp .unit { font: 500 12px/1 var(--mono); color: var(--faint); padding: 0 10px; display: flex; align-items: center; background: var(--surface-2); border-left: 1px solid var(--line); }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 2px 0 0; }
+.score-scale { display: flex; justify-content: space-between; font: 400 11px/1 var(--mono); color: var(--faint); }
+.derived { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.drow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13.5px; color: var(--muted); }
+.drow output { font: 500 14px/1.2 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.drow small { font: 400 11px/1 var(--mono); color: var(--faint); margin-left: 6px; }
+.note { font-size: 12.5px; color: var(--faint); margin: 0; }
+
+/* ---------- Karar paneli ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 18px; }
+.eyebrow { font: 700 11px/1 var(--display); text-transform: uppercase; letter-spacing: .09em; color: var(--faint); }
+.prob { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.prob .big { font: 600 clamp(46px, 7vw, 60px)/0.95 var(--mono); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.verdict { display: inline-flex; align-items: center; gap: 7px; font: 700 14px/1 var(--body); padding: 8px 11px; border-radius: 8px; }
+.verdict svg { width: 16px; height: 16px; flex: none; }
+.v-low { background: var(--good-soft); color: var(--good); }
+.v-mid { background: var(--warn-soft); color: var(--warn); }
+.v-high { background: var(--crit-soft); color: var(--crit); }
+.decision { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+.decision b { color: var(--fg); }
+
+.gauge { position: relative; padding: 22px 0 26px; }
+.gtrack { height: 12px; border-radius: 6px; background: var(--track); position: relative; overflow: hidden; }
+.gfill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; transition: width .25s ease, background-color .25s; }
+.gmark { position: absolute; top: 14px; bottom: 18px; width: 0; border-left: 2px solid var(--fg); }
+.gmark.avg { border-left: 2px dotted var(--muted); }
+.gmark span { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 500 11px/1 var(--mono); color: var(--muted); }
+.gmark.th span { top: -14px; color: var(--fg); }
+.gmark.avg span { bottom: -16px; }
+.gaxis { display: flex; justify-content: space-between; font: 400 11px/1 var(--mono); color: var(--faint); margin-top: 6px; }
+
+.why h2 { font: 700 17px/1.2 var(--display); font-stretch: 108%; margin: 0 0 4px; }
+.why p.lead { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.why p.lead b { color: var(--fg); }
+.bars { display: grid; gap: 7px; }
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) 46px; gap: 4px 10px; align-items: center; }
+.bar .name { font-size: 13.5px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.bar .name span:last-child { font: 400 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { grid-column: 1; position: relative; height: 9px; }
+.bar .track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid var(--line-strong); }
+.bar .b { position: absolute; top: 0; height: 9px; border-radius: 3px; }
+.bar .val { grid-column: 2; grid-row: 1 / span 2; font: 600 13px/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.legend { display: flex; justify-content: space-between; font: 400 11.5px/1 var(--mono); color: var(--faint); margin: 10px 56px 0 0; }
+.method { font-size: 12.5px; color: var(--faint); margin: 12px 0 0; }
+
+.about { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.about section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; }
+.about h3 { font: 700 15px/1.2 var(--display); margin: 0 0 10px; }
+.about p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+.mtable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.mtable td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+.mtable td:last-child { text-align: right; font: 500 13.5px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.imp { display: grid; gap: 5px; }
+.imp div { display: grid; grid-template-columns: 150px minmax(0, 1fr) 48px; gap: 8px; align-items: center; font-size: 13px; }
+.imp i { display: block; height: 7px; border-radius: 2px; background: var(--accent); }
+.imp code { font: 400 12px/1 var(--mono); color: var(--muted); text-align: right; }
+.arch { font: 400 12.5px/1.7 var(--mono); color: var(--muted); background: var(--surface-2); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; margin: 0; }
+
+.pill { display: none; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: var(--fg); color: var(--bg); border: 0; font: 600 14px/1 var(--body); box-shadow: 0 6px 24px rgba(0,0,0,.22); cursor: pointer; }
+.pill .pnum { font: 600 16px/1 var(--mono); }
+
+@media (max-width: 980px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { position: static; order: -1; }
+  .pill { display: inline-flex; }
+}
+@media (max-width: 640px) {
+  form, .row2 { grid-template-columns: minmax(0, 1fr); }
+  .imp div { grid-template-columns: 118px minmax(0, 1fr) 44px; }
+  .card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .gfill { transition: none; } }
+</style>
+
+<div class="wrap" lang="tr">
+  <header class="top">
+    <div>
+      <h1>Temerrüt Risk Simülatörü</h1>
+      <p class="sub">Müşteri bilgilerini değiştirin; eğitilmiş 1D-CNN modeli temerrüt olasılığını anında hesaplar ve kararını hangi değişkenlerin belirlediğini gösterir.</p>
+    </div>
+    <div class="specs" id="specs"></div>
+  </header>
+
+  <div class="toolbar" role="group" aria-label="Örnek müşteri yükle">
+    <span class="lbl">Test setinden yükle</span>
+    <button class="chip" type="button" id="btn-rand">Rastgele müşteri</button>
+    <button class="chip" type="button" id="btn-def"><span class="dot" style="background:var(--up)"></span>Temerrüde düşmüş biri</button>
+    <button class="chip" type="button" id="btn-ok"><span class="dot" style="background:var(--down)"></span>Ödemiş biri</button>
+    <button class="chip" type="button" id="btn-ref">Tipik müşteri</button>
+  </div>
+  <div class="banner" id="banner" aria-live="polite"></div>
+
+  <div class="grid">
+    <form id="form" autocomplete="off"></form>
+
+    <aside class="panel" id="panel">
+      <div class="card">
+        <div>
+          <div class="eyebrow">Temerrüt olasılığı</div>
+          <div class="prob">
+            <span class="big" id="pbig">–</span>
+            <span class="verdict" id="verdict"></span>
+          </div>
+          <p class="decision" id="decision"></p>
+        </div>
+        <div class="gauge" aria-hidden="true">
+          <div class="gtrack"><div class="gfill" id="gfill"></div></div>
+          <div class="gmark th" id="mark-th"><span id="mark-th-l"></span></div>
+          <div class="gmark avg" id="mark-avg"><span id="mark-avg-l"></span></div>
+          <div class="gaxis"><span>%0</span><span>%50</span><span>%100</span></div>
+        </div>
+        <div class="why">
+          <h2>Model bu sonuca nasıl vardı?</h2>
+          <p class="lead" id="lead"></p>
+          <div class="bars" id="bars"></div>
+          <div class="legend"><span>← riski azaltıyor</span><span>riski artırıyor →</span></div>
+          <p class="method">Her çubuk, o değişkeni tipik müşterinin değerine çektiğimizde temerrüt olasılığının kaç yüzde puan değiştiğini gösterir (occlusion yöntemi). Çubuğun üzerine gelince tipik değeri görebilirsiniz.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="about">
+    <section>
+      <h3>Test seti başarısı</h3>
+      <p>15.000 müşterilik, eğitimde hiç görülmemiş test seti. Karar eşiği doğrulama setinde F1'i en yüksek yapan değer olarak seçildi.</p>
+      <table class="mtable" id="metrics"></table>
+    </section>
+    <section>
+      <h3>Modelin genel olarak en çok baktığı değişkenler</h3>
+      <p>Permütasyon önemi: değişken test setinde karıştırılınca PR-AUC'deki düşüş.</p>
+      <div class="imp" id="imp"></div>
+    </section>
+    <section>
+      <h3>Mimari</h3>
+      <pre class="arch">24 değişken → Feature Tokenizer (24 × 16)
+Conv1d 16→32, k=3 · BN · ReLU
+Conv1d 32→64, k=3 · BN · ReLU
+Conv1d 64→64, k=3 · BN · ReLU  (+ residual)
+GlobalAvg ⊕ GlobalMax → 128
+Linear 128→64 · ReLU · Dropout 0,3
+Linear 64→1 → σ(z − ln w)</pre>
+      <p style="margin-top:10px">Ders projesi demosudur; gerçek bir kredi kararında kullanılamaz. Cinsiyet modelde kullanılmıyor: veride iki cinsiyetin temerrüt oranı aynı (%12,9).</p>
+      <p>Umut Barbaros BABAHAN · Yapay Zeka Mühendisliği, OSTİM Teknik Üniversitesi. Veri: <a href="https://www.kaggle.com/datasets/kivancbaysal/trkiye-2026-kredi-temerrt-dataset" target="_blank" rel="noopener" style="color:var(--accent)">Türkiye 2026 Kredi Temerrüt Dataset (Kaggle)</a></p>
+    </section>
+  </div>
+</div>
+
+<button class="pill" lang="tr" type="button" id="pill" aria-label="Sonuca git"><span class="pnum" id="pill-num">–</span><span id="pill-txt"></span></button>
+
+<script type="application/json" id="model-data">__MODEL_JSON__</script>
+<script>
+__MODEL_JS__
+</script>
+<script>
+(function () {
+  const M = JSON.parse(document.getElementById("model-data").textContent);
+  const model = createModel(M);
+  const ET = M.etiket, ESIK = M.esik, AVG = 0.129;
+  const nf0 = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
+  const nf1 = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const nf3 = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  const pct = (p) => "%" + nf1.format(p * 100);
+  const nice = (s) => String(s).replace(/_/g, " ");
+  const rng = M.aralik;
+
+  // Form tanımı: gruplar ve alanlar (model değişkenleri + iki yardımcı alan)
+  const GROUPS = [
+    { t: "Kişisel bilgiler", f: ["Yas", "Egitim_Durumu", "Sehir"], note: "Cinsiyet modelde kullanılmıyor." },
+    { t: "İş ve gelir", f: ["Calisma_Durumu", "Sektor", "Aylik_Gelir_TL", "Calisma_Suresi_Yil"] },
+    { t: "Kredi geçmişi", f: ["Kredi_Skoru", "Kredi_Gecmisi_Yil"], wide: true },
+    { t: "Ödeme davranışı (son 12 ay)", f: ["Gec_Odeme_Sayisi_12_Ay", "Maksimum_Gecikme_Gunu", "Son_12_Ay_Odeme_Orani"] },
+    { t: "Bankayla ilişkisi", f: ["Banka_Musterilik_Suresi_Ay", "Aktif_Urun_Sayisi", "Dijital_Bankacilik_Kullanim_Skoru"] },
+    { t: "Kredi kartı", f: ["Kredi_Karti_Limiti_TL", "Kredi_Karti_Kullanim_Orani"], derived: ["Kredi_Karti_Borcu_TL"] },
+    { t: "Kredi", f: ["Kredi_Tutari_TL", "Kredi_Vadesi_Ay"], derived: ["Aylik_Kredi_Odemesi_TL"] },
+    { t: "Borç yükü", f: ["_diger"], derived: ["Toplam_Borc_TL", "Borc_Gelir_Orani", "Aylik_Borc_Odeme_Orani"], wide: true },
+  ];
+  const UNIT = { Yas: "yaş", Aylik_Gelir_TL: "TL", Calisma_Suresi_Yil: "yıl", Banka_Musterilik_Suresi_Ay: "ay",
+    Aktif_Urun_Sayisi: "adet", Dijital_Bankacilik_Kullanim_Skoru: "/100", Kredi_Gecmisi_Yil: "yıl",
+    Kredi_Karti_Limiti_TL: "TL", Kredi_Karti_Kullanim_Orani: "%", Kredi_Tutari_TL: "TL", _diger: "TL",
+    Gec_Odeme_Sayisi_12_Ay: "kez", Maksimum_Gecikme_Gunu: "gün", Son_12_Ay_Odeme_Orani: "oran" };
+  const STEP = { Aylik_Gelir_TL: 100, Kredi_Karti_Limiti_TL: 500, Kredi_Tutari_TL: 1000, _diger: 100,
+    Kredi_Karti_Kullanim_Orani: 0.1, Son_12_Ay_Odeme_Orani: 0.01 };
+  const LABEL = Object.assign({}, ET, { _diger: "Diğer borçlar", Gec_Odeme_Sayisi_12_Ay: "Geç ödeme sayısı",
+    Maksimum_Gecikme_Gunu: "En uzun gecikme", Son_12_Ay_Odeme_Orani: "Ödeme oranı", Kredi_Karti_Kullanim_Orani: "Kart kullanım oranı" });
+  const HINT = { Son_12_Ay_Odeme_Orani: "ödenen / vadesi gelen", _diger: "kart ve kredi dışı", Dijital_Bankacilik_Kullanim_Skoru: "1–100" };
+  const VADE = [0, 12, 18, 24, 36, 48, 60];
+  const DERIVED_INPUTS = new Set(["Aylik_Gelir_TL", "Kredi_Karti_Limiti_TL", "Kredi_Karti_Kullanim_Orani", "Kredi_Tutari_TL", "Kredi_Vadesi_Ay", "_diger"]);
+
+  let rec = {}, aux = { faktor: 1.22, ek: 778, diger: 7339 }, src = null, edited = false;
+
+  // ---------- Formu oluştur ----------
+  const form = document.getElementById("form");
+  const fieldHTML = (f) => {
+    const id = "f-" + f;
+    if (M.prep.cat_cols.includes(f)) {
+      const opts = M.prep.vocab[f].map((v) => `<option value="${v}">${nice(v)}</option>`).join("");
+      return `<div class="field"><label for="${id}">${LABEL[f]}</label><div class="inp"><select id="${id}" data-f="${f}">${opts}</select></div></div>`;
+    }
+    if (f === "Kredi_Vadesi_Ay") {
+      const opts = VADE.map((v) => `<option value="${v}">${v === 0 ? "Kredi yok" : v + " ay"}</option>`).join("");
+      return `<div class="field"><label for="${id}">${LABEL[f]}</label><div class="inp"><select id="${id}" data-f="${f}">${opts}</select></div></div>`;
+    }
+    const r = f === "_diger" ? [0, 500000] : rng[f];
+    const hint = HINT[f] || (f === "_diger" ? "" : `${nf0.format(r[0])}–${nf0.format(r[1])}`);
+    if (f === "Kredi_Skoru") {
+      return `<div class="field"><label for="${id}">${LABEL[f]}<span class="hint">${r[0]}–${r[1]}</span></label>
+        <div class="inp"><input id="${id}" data-f="${f}" type="number" inputmode="numeric" min="${r[0]}" max="${r[1]}" step="1"><span class="unit">puan</span></div>
+        <input type="range" id="${id}-r" data-f="${f}" min="${r[0]}" max="${r[1]}" step="1" aria-label="Kredi skoru kaydırıcı">
+        <div class="score-scale"><span>350 · çok riskli</span><span>600</span><span>850 · çok iyi</span></div></div>`;
+    }
+    return `<div class="field"><label for="${id}">${LABEL[f]}<span class="hint">${hint}</span></label>
+      <div class="inp"><input id="${id}" data-f="${f}" type="number" inputmode="decimal" min="${r[0]}" max="${r[1]}" step="${STEP[f] || 1}"><span class="unit">${UNIT[f] || ""}</span></div></div>`;
+  };
+  const DERIVED_TXT = {
+    Kredi_Karti_Borcu_TL: "limit × kullanım", Aylik_Kredi_Odemesi_TL: "tutar ÷ vade × faiz",
+    Toplam_Borc_TL: "kart + kredi + diğer", Borc_Gelir_Orani: "toplam ÷ (12 × aylık gelir)", Aylik_Borc_Odeme_Orani: "aylık ödemeler ÷ gelir" };
+  form.innerHTML = GROUPS.map((g) => {
+    const fs = g.f.map(fieldHTML);
+    const inner = g.f.length >= 2 && !g.f.includes("Kredi_Skoru") ? `<div class="row2">${fs.join("")}</div>` : fs.join("");
+    const der = g.derived ? `<div class="derived">${g.derived.map((d) =>
+      `<div class="drow"><span>${ET[d]}<small>${DERIVED_TXT[d]}</small></span><output id="d-${d}"></output></div>`).join("")}</div>` : "";
+    const note = g.note ? `<p class="note">${g.note}</p>` : "";
+    return `<fieldset class="${g.wide ? "wide" : ""}"><legend>${g.t}</legend>${inner}${der}${note}</fieldset>`;
+  }).join("");
+
+  const fmt = (f, v) => {
+    if (M.prep.cat_cols.includes(f)) return nice(v);
+    if (f.endsWith("_TL")) return nf0.format(v) + " TL";
+    if (f === "Kredi_Karti_Kullanim_Orani") return "%" + nf1.format(v);
+    if (f === "Borc_Gelir_Orani" || f === "Aylik_Borc_Odeme_Orani" || f === "Son_12_Ay_Odeme_Orani") return nf3.format(v);
+    if (f === "Kredi_Vadesi_Ay") return v ? v + " ay" : "kredi yok";
+    if (f === "Maksimum_Gecikme_Gunu") return v + " gün";
+    if (f === "Banka_Musterilik_Suresi_Ay") return v + " ay";
+    if (f === "Calisma_Suresi_Yil" || f === "Kredi_Gecmisi_Yil") return v + " yıl";
+    if (f === "Gec_Odeme_Sayisi_12_Ay") return v + " kez";
+    return nf0.format(v);
+  };
+
+  // ---------- Türetilmiş alanlar (veri setindeki ilişkilerle aynı) ----------
+  function recomputeDerived() {
+    const g = rec.Aylik_Gelir_TL;
+    rec.Kredi_Karti_Borcu_TL = Math.round(rec.Kredi_Karti_Limiti_TL * rec.Kredi_Karti_Kullanim_Orani / 100);
+    rec.Aylik_Kredi_Odemesi_TL = rec.Kredi_Tutari_TL > 0 && rec.Kredi_Vadesi_Ay > 0 ? Math.round(rec.Kredi_Tutari_TL / rec.Kredi_Vadesi_Ay * aux.faktor) : 0;
+    rec.Toplam_Borc_TL = rec.Kredi_Karti_Borcu_TL + rec.Kredi_Tutari_TL + aux.diger;
+    rec.Borc_Gelir_Orani = Math.round(rec.Toplam_Borc_TL / (12 * g) * 1000) / 1000;
+    rec.Aylik_Borc_Odeme_Orani = Math.round(Math.max(0, rec.Aylik_Kredi_Odemesi_TL + aux.ek) / g * 1000) / 1000;
+  }
+
+  function writeForm() {
+    form.querySelectorAll("[data-f]").forEach((el) => {
+      const f = el.dataset.f;
+      el.value = f === "_diger" ? aux.diger : rec[f];
+    });
+  }
+
+  function load(r, source) {
+    rec = {};
+    for (const f of [...M.prep.num_cols, ...M.prep.cat_cols]) rec[f] = r[f];
+    aux.diger = Math.max(0, rec.Toplam_Borc_TL - rec.Kredi_Karti_Borcu_TL - rec.Kredi_Tutari_TL);
+    aux.faktor = rec.Kredi_Tutari_TL > 0 && rec.Kredi_Vadesi_Ay > 0 ? rec.Aylik_Kredi_Odemesi_TL / (rec.Kredi_Tutari_TL / rec.Kredi_Vadesi_Ay) : 1.22;
+    aux.ek = rec.Aylik_Borc_Odeme_Orani * rec.Aylik_Gelir_TL - rec.Aylik_Kredi_Odemesi_TL;
+    src = source; edited = false;
+    writeForm(); update();
+  }
+
+  form.addEventListener("input", (e) => {
+    const el = e.target, f = el.dataset.f;
+    if (!f) return;
+    let v = el.tagName === "SELECT" && M.prep.cat_cols.includes(f) ? el.value : parseFloat(String(el.value).replace(",", "."));
+    if (typeof v === "number" && !isFinite(v)) return;          // yazım sürerken boş/yarım değeri yok say
+    if (typeof v === "number" && f !== "Kredi_Vadesi_Ay") {
+      const r = f === "_diger" ? [0, 500000] : rng[f];
+      v = Math.min(r[1], Math.max(r[0], v));                   // eğitim aralığının dışına çıkma
+    }
+    if (f === "_diger") aux.diger = v; else rec[f] = v;
+    if (f === "Kredi_Skoru") form.querySelectorAll('[data-f="Kredi_Skoru"]').forEach((x) => { if (x !== el) x.value = v; });
+    if (f === "Kredi_Tutari_TL" && v === 0) { rec.Kredi_Vadesi_Ay = 0; document.getElementById("f-Kredi_Vadesi_Ay").value = 0; }
+    if (f === "Kredi_Tutari_TL" && v > 0 && rec.Kredi_Vadesi_Ay === 0) { rec.Kredi_Vadesi_Ay = 24; document.getElementById("f-Kredi_Vadesi_Ay").value = 24; }
+    if (f === "Kredi_Vadesi_Ay" && v === 0) { rec.Kredi_Tutari_TL = 0; document.getElementById("f-Kredi_Tutari_TL").value = 0; }
+    if (DERIVED_INPUTS.has(f)) recomputeDerived();
+    edited = true;
+    schedule();
+  });
+  form.addEventListener("change", (e) => { if (e.target.dataset.f) writeForm(); });   // sınırlanan değeri kutuya geri yaz
+  form.addEventListener("submit", (e) => e.preventDefault());
+
+  let raf = 0;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+
+  // ---------- Sonuç paneli ----------
+  const ICON = {
+    ok: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+    warn: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2.5l6 11H2z"/><path d="M8 7v3"/><circle cx="8" cy="12" r=".4" fill="currentColor"/></svg>',
+    stop: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></svg>' };
+
+  document.getElementById("mark-th").style.left = ESIK * 100 + "%";
+  document.getElementById("mark-th-l").textContent = "karar eşiği " + pct(ESIK);
+  document.getElementById("mark-avg").style.left = AVG * 100 + "%";
+  document.getElementById("mark-avg-l").textContent = "veri ort. " + pct(AVG);
+
+  function update() {
+    for (const d of ["Kredi_Karti_Borcu_TL", "Aylik_Kredi_Odemesi_TL", "Toplam_Borc_TL", "Borc_Gelir_Orani", "Aylik_Borc_Odeme_Orani"])
+      document.getElementById("d-" + d).textContent = fmt(d, rec[d]);
+    const { p, contrib } = model.explain(rec);
+    const band = p >= ESIK ? "high" : p >= AVG ? "mid" : "low";
+    const V = { low: ["v-low", ICON.ok, "Düşük risk"], mid: ["v-mid", ICON.warn, "Orta risk"], high: ["v-high", ICON.stop, "Yüksek risk"] }[band];
+    document.getElementById("pbig").textContent = pct(p);
+    const vEl = document.getElementById("verdict");
+    vEl.className = "verdict " + V[0]; vEl.innerHTML = V[1] + V[2];
+    document.getElementById("decision").innerHTML = p >= ESIK
+      ? `Olasılık %${nf0.format(ESIK * 100)} eşiğinin üstünde: model bu müşteri için <b>temerrüt</b> tahmin ediyor.`
+      : `Olasılık %${nf0.format(ESIK * 100)} eşiğinin altında: model bu müşterinin <b>ödeyeceğini</b> tahmin ediyor.`;
+    const gf = document.getElementById("gfill");
+    gf.style.width = Math.max(0.6, p * 100) + "%";
+    gf.style.background = band === "high" ? "var(--crit)" : band === "mid" ? "var(--warn)" : "var(--good)";
+    document.getElementById("pill-num").textContent = pct(p);
+    document.getElementById("pill-txt").textContent = V[2];
+
+    // Katkılar
+    const top = contrib.filter((c) => Math.abs(c.delta) >= 0.0005).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 8);
+    const maxAbs = Math.max(0.02, ...top.map((c) => Math.abs(c.delta)));
+    document.getElementById("bars").innerHTML = top.length ? top.map((c) => {
+      const w = Math.abs(c.delta) / maxAbs * 50, up = c.delta > 0;
+      const pos = up ? `left:50%;width:${w}%` : `left:${50 - w}%;width:${w}%`;
+      const tip = `Tipik değer: ${fmt(c.f, M.referans[c.f])}. Bu değer olsaydı risk ${pct(c.pRef)} olurdu.`;
+      return `<div class="bar" title="${tip}"><div class="name"><span>${ET[c.f]}</span><span>${fmt(c.f, rec[c.f])}</span></div>
+        <div class="val" style="color:var(${up ? "--up" : "--down"})">${up ? "+" : "−"}${nf1.format(Math.abs(c.delta) * 100)}</div>
+        <div class="track"><div class="b" style="${pos};background:var(${up ? "--up" : "--down"})"></div></div></div>`;
+    }).join("") : `<p class="note">Bu müşteri tipik müşteriyle aynı; belirgin bir katkı yok.</p>`;
+    const ups = top.filter((c) => c.delta > 0).slice(0, 2).map((c) => ET[c.f].toLowerCase());
+    const downs = top.filter((c) => c.delta < 0).slice(0, 2).map((c) => ET[c.f].toLowerCase());
+    const pRef = model.predict(M.referans);
+    let lead = `Tipik bir müşterinin riski ${pct(pRef)}. `;
+    if (ups.length) lead += `Bu müşteride riski en çok <b>${ups.join("</b> ve <b>")}</b> artırıyor`;
+    if (ups.length && downs.length) lead += `; <b>${downs.join("</b> ve <b>")}</b> ise azaltıyor.`;
+    else if (downs.length) lead += `Bu müşteride riski en çok <b>${downs.join("</b> ve <b>")}</b> azaltıyor.`;
+    else if (ups.length) lead += ".";
+    document.getElementById("lead").innerHTML = lead + ` Değerler yüzde puan.`;
+
+    // Bilgi şeridi
+    const bn = document.getElementById("banner");
+    if (src && src.kind === "test") {
+      const y = src.y, dogru = (p >= ESIK ? 1 : 0) === y;
+      bn.innerHTML = edited
+        ? `<b>Test müşterisi #${src.i + 1}</b><span>Değerleri değiştirdiniz; gerçek sonuç artık bu profil için geçerli değil.</span><span class="tag neutral">düzenlendi</span>`
+        : `<b>Test müşterisi #${src.i + 1}</b><span>Gerçek sonuç: <b>${y ? "temerrüde düştü" : "kredisini ödedi"}</b></span>
+           <span class="tag ${dogru ? "ok" : "bad"}">${dogru ? "Model doğru tahmin etti" : "Model yanıldı"}</span>`;
+    } else {
+      bn.innerHTML = edited
+        ? `<b>Kendi senaryonuz</b><span>Tipik müşteriden başlayıp değerleri değiştirdiniz.</span>`
+        : `<b>Tipik müşteri</b><span>Eğitim setindeki her değişkenin medyanı (kategorilerde en sık değer). Değerleri değiştirerek kendi senaryonuzu deneyin.</span>`;
+    }
+  }
+
+  // ---------- Örnek müşteriler ----------
+  const S = M.ornek_musteriler;
+  const pick = (filter) => { const ids = S.map((r, i) => i).filter((i) => filter(S[i])); return ids[Math.floor(Math.random() * ids.length)]; };
+  const loadTest = (i) => load(S[i], { kind: "test", i, y: S[i].Temerrut });
+  document.getElementById("btn-rand").onclick = () => loadTest(pick(() => true));
+  document.getElementById("btn-def").onclick = () => loadTest(pick((r) => r.Temerrut === 1));
+  document.getElementById("btn-ok").onclick = () => loadTest(pick((r) => r.Temerrut === 0));
+  document.getElementById("btn-ref").onclick = () => load(M.referans, { kind: "ref" });
+  document.getElementById("pill").onclick = () => document.getElementById("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // ---------- Model bilgisi ----------
+  const tm = M.test_metrikleri;
+  document.getElementById("specs").innerHTML = [`1D-CNN · 30.273 parametre`, `ROC-AUC ${nf3.format(tm["ROC-AUC"])}`, `F1 ${nf3.format(tm.F1)}`, `tarayıcıda çalışır`]
+    .map((s) => `<span class="spec">${s}</span>`).join("");
+  document.getElementById("metrics").innerHTML = [["Accuracy", tm.Accuracy], ["Precision", tm.Precision], ["Recall", tm.Recall], ["F1", tm.F1], ["ROC-AUC", tm["ROC-AUC"]], ["PR-AUC", tm["PR-AUC"]], ["Karar eşiği", tm["Eşik"]]]
+    .map(([k, v]) => `<tr><td>${k}</td><td>${nf3.format(v)}</td></tr>`).join("");
+  const imp = Object.entries(M.permutasyon_onemi).slice(0, 8), im = imp[0][1];
+  document.getElementById("imp").innerHTML = imp.map(([k, v]) => `<div><span>${ET[k]}</span><i style="width:${Math.max(1, v / im * 100)}%"></i><code>${nf3.format(v)}</code></div>`).join("");
+
+  // Açılış: modelin doğru yakaladığı orta-yüksek riskli gerçek bir temerrüt vakası
+  const first = S.findIndex((r) => r.Temerrut === 1 && r._p > 0.55 && r._p < 0.8);
+  loadTest(first >= 0 ? first : 0);
+})();
+</script>

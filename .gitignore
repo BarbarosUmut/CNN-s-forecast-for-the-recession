@@ -1,0 +1,21 @@
+# Veri seti Kaggle'dan indirilir (lisansı belirtilmemiş)
+*.csv
+
+# Python / Jupyter
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.venv/
+venv/
+
+# LaTeX ara dosyaları
+report/*.aux
+report/*.log
+report/*.out
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db
