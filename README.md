@@ -55,7 +55,7 @@ Uygulama tek bir HTML dosyasıdır (`docs/index.html`). Eğitilmiş modelin ağ�
 
 | Yol | Nasıl |
 |---|---|
-| **Canlı demo** | [KULLANICI_ADI.github.io/kredi-temerrut-cnn](https://KULLANICI_ADI.github.io/kredi-temerrut-cnn/) adresini açın. |
+| **Canlı demo** | [KULLANICI_ADI.github.io/kredi-temerrut-cnn]([https://KULLANICI_ADI.github.io/kredi-temerrut-cnn/](https://github.com/BarbarosUmut/CNN-s-forecast-for-the-recession/tree/main/docs)) adresini açın. |
 | **Bilgisayarınızda** | Depoyu indirin ve `docs/index.html` dosyasına çift tıklayın. |
 | **Kendi modelinizle** | Notebook'u çalıştırın, ardından `python app/build_app.py` komutuyla uygulamayı yeni ağırlıklarla yeniden derleyin. |
 
